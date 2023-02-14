@@ -227,6 +227,46 @@ func (c *RESTClient) ListArtifacts(ctx context.Context, projectName, repositoryN
 	return artifacts, nil
 }
 
+func (c *RESTClient) ListArtifactsWithLabels(ctx context.Context, projectName, repositoryName string) ([]*model.Artifact, error) {
+	var artifacts []*model.Artifact
+	page := c.Options.Page
+	withLabel := bool(true)
+
+	params := artifact.NewListArtifactsParams()
+	params.WithContext(ctx)
+	params.WithTimeout(c.Options.Timeout)
+	params.Page = &page
+	params.PageSize = &c.Options.PageSize
+	params.Q = &c.Options.Query
+	params.Sort = &c.Options.Sort
+	params.WithProjectName(projectName)
+	params.WithRepositoryName(repositoryName)
+	params.SetWithLabel(&withLabel)
+
+	for {
+		resp, err := c.V2Client.Artifact.ListArtifacts(params, c.AuthInfo)
+		if err != nil {
+			return nil, handleSwaggerArtifactErrors(err)
+		}
+
+		if len(resp.Payload) == 0 {
+			break
+		}
+
+		totalCount := resp.XTotalCount
+
+		artifacts = append(artifacts, resp.Payload...)
+
+		if int64(len(artifacts)) >= totalCount {
+			break
+		}
+
+		page++
+	}
+
+	return artifacts, nil
+}
+
 func (c *RESTClient) ListTags(ctx context.Context, projectName, repositoryName, reference string) ([]*model.Tag, error) {
 	var tags []*model.Tag
 	page := c.Options.Page
